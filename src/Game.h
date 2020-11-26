@@ -73,8 +73,10 @@ public:
     int deltaTime = timeSinceStart - oldTimeSinceStart;
     oldTimeSinceStart = timeSinceStart;
     std::list<Ball*> ballsToRemove;
+
+    Ball::move(balls, deltaTime);
+
     for (Ball* ball : balls) {
-      ball->move(1.0 * deltaTime / 1000);
       bool touchBasket = ball->checkCollisionWithBasket(basket);
       if (touchBasket) {
         if (ball->getBallType() == RED) {

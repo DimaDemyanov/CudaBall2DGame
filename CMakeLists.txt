@@ -6,9 +6,14 @@ cmake_minimum_required (VERSION 3.9)
 project ("CudaKursachCMakeV2.0")
 set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_PREFIX_PATH ${PROJECT_SOURCE_DIR}/external/freeglut)
+enable_language(CUDA) 
 
+SET(CUDA_TOOLKIT_ROOT_DIR "C:\\")
+SET(CUDA_BIN_PATH "C:\\")
+SET(CUDA_PATH "C:\\")
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
+find_package(CUDA REQUIRED)
 
 SET(GLUT_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/freeglut)
 SET(GLEW_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/glew)
@@ -20,22 +25,12 @@ SET(FREETYPE_LIBRARY ${PROJECT_SOURCE_DIR}/external/freetype/static/win64/freety
 SET(GLTEXT_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/gltext)
 include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${FREETYPE_INCLUDE_DIRS})
 
-SET(DRAW_TEXT_SOURCES
-    src/libdrawtext/draw.c
-    src/libdrawtext/drawgl.c
-    src/libdrawtext/drawrast.c
-    src/libdrawtext/font.c
-    src/libdrawtext/tpool.c
-    src/libdrawtext/utf8.c
-)
 
-find_package(CUDA QUIET REQUIRED)
-
-enable_language(CUDA) 
+#add_subdirectory (src/CudaLibrary)
 
 #message("DIMA:", ${GLUT_LIBRARY} , ${GLUT_INCLUDE_DIRS}, ${GLUT_FOUND})
-message("DIMA:", ${OPENGL_LIBRARY} , ${OPENGL_INCLUDE_DIRS}, ${OPENGL_FOUND})
+#message("DIMA:", ${OPENGL_LIBRARY} , ${OPENGL_INCLUDE_DIRS}, ${OPENGL_FOUND})
 
-add_executable (CudaKursachCMakeV2.0 "src/Main.cpp" "src/Ball.cu")
+cuda_add_executable (CudaKursachCMakeV2.0 "src/Main.cpp" "src/CudaBall.cu")
 
 target_link_libraries(CudaKursachCMakeV2.0 ${OPENGL_LIBRARY} ${GLUT_LIBRARY} ${FREEGLUT_LIBRARY} ${GLEW_LIBRARY} ${GLTEXT_LIBRARIES} ${FREETYPE_LIBRARY})

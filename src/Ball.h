@@ -5,7 +5,9 @@
 #include"Basket.h"
 #include"Platform.h"
 #include"CollisionChecker.h"
+//#include"CudaBall.h"
 #include <gl/glut.h>
+#include <list>
 
 enum BallType {
   RED, BLUE
@@ -24,6 +26,8 @@ struct BallData {
   float mass;
   BallType type;
 };
+
+
 
 class Ball: public Drawable {
 public: 
@@ -59,10 +63,25 @@ public:
     return false;
   }
 
-  void move(float deltaTime) {
-    pos->setX(pos->getX() - velocity->getX() * deltaTime);
-    pos->setY(pos->getY() - velocity->getY() * deltaTime);
-    velocity->setY(velocity->getY() + g * deltaTime);
+  //TODO: avoid convertions to BallData and back
+  static std::list<Ball*> move(std::list<Ball*> balls, int deltaTime) {
+    BallData* ballsData = convertBallsListToBallsData(balls);
+    CudaMoveBalls(ballsData, balls.size(), deltaTime);
+    return convertBallsDataToBallsList(ballsData, balls.size());
+  }
+
+  static void CudaMoveBalls(BallData* ballsData, int size, int deltaTime);// {};
+
+  //static void move(std::list<Ball*> balls, int deltatime) {
+  //  for (Ball* ball : balls) {
+  //    ball->move(1.0 * deltatime / 1000);
+  //  }
+  //}
+
+  void move(float deltatime) {
+    pos->setX(pos->getX() - velocity->getX() * deltatime);
+    pos->setY(pos->getY() - velocity->getY() * deltatime);
+    velocity->setY(velocity->getY() + g * deltatime);
   }
 
   bool checkCollisionWithBasket(Basket* basket) {
@@ -81,9 +100,17 @@ public:
     velocity = CollisionChecker::changeVelocity(pos->getX(), pos->getY(), radius, platform->getPos()->getX(), platform->getPos()->getY(), platform->getWidth(), platform->getHeight(), platform->getAngle(), velocity);
   }
 
-  bool colliding(Ball* ball);
+  bool CudaColliding(Ball* ball1, Ball * ball2);// { return true; }
 
-  void resolveCollision(Ball* ball);
+  bool colliding(Ball* ball) {
+    return CudaColliding(this, ball);
+  }
+
+  void CudaResolveCollision(Ball* ball1, Ball * ball2);// {}
+
+  void resolveCollision(Ball* ball) {
+    return CudaResolveCollision(this, ball);
+  }
  
 
   Vector* getPos() {
@@ -145,4 +172,25 @@ private:
   float radius;
   float mass;
   BallType ballType;
+
+  static BallData* convertBallsListToBallsData(std::list<Ball*> balls) {
+    BallData* ballsData = new BallData[balls.size()];
+    int i = 0;
+    for (Ball* ball : balls) {
+      ballsData[i++] = ball->getBallData();
+    }
+
+    return ballsData;
+  }
+
+  static std::list<Ball*> convertBallsDataToBallsList(BallData* ballsData, int size) {
+    std::list<Ball*> balls;
+
+    for (int i = 0; i < size; i++) {
+      Ball* ball = new Ball(new Vector(ballsData[i].pos_x, ballsData[i].pos_y), new Vector(ballsData[i].velocity_x, ballsData[i].velocity_y), ballsData[i].radius, ballsData[i].type);
+      balls.push_back(ball);
+    }
+
+    return balls;
+  }
 };
