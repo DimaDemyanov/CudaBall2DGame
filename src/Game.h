@@ -4,14 +4,14 @@
 #define GLT_IMPLEMENTATION
 #include <gl/glew.h>
 #include <gl/gl.h>
-#include<gl/glut.h>
+#include <gl/glut.h>
 #include"Ball.h"
 #include"BallGenerator.h"
 #include"Basket.h"
 #include"Platform.h"
 
-const unsigned int TIME_BETWEEN_BALLS_GENERATION = 200;
-const unsigned int BALLS_MAX_COUNT = 300;
+const unsigned int TIME_BETWEEN_BALLS_GENERATION = 10;
+const unsigned int BALLS_MAX_COUNT = 3000;
 const unsigned int RED_BALLS_COUNT_TO_WIN = 70;
 const unsigned int BLUE_BALLS_COUNT_TO_WIN = 60;
 
@@ -41,8 +41,8 @@ public:
     platform1 = new Platform(platform1Pos, 0.0f, 0.4f, 0.05f);
     platform2 = new Platform(platform2Pos, 0.0f, 0.45f, 0.07f);
 
-    redBallGenerator = new BallGenerator(redBallsGenVelocityFrom, redBallsGenVelocityTo, redBallsGenPos, 0.03, RED);
-    blueBallGenerator = new BallGenerator(blueBallsGenVelocityFrom, blueBallsGenVelocityTo, blueBallsGenPos, 0.04, BLUE);
+    redBallGenerator = new BallGenerator(redBallsGenVelocityFrom, redBallsGenVelocityTo, redBallsGenPos, 0.015, RED);
+    blueBallGenerator = new BallGenerator(blueBallsGenVelocityFrom, blueBallsGenVelocityTo, blueBallsGenPos, 0.02, BLUE);
     lastTimeBallGenerated = -1;
 
     basket = new Basket(1.0f, 0.05f);
@@ -70,11 +70,11 @@ public:
       totalBallsGeneratedCount += 2;
       lastTimeBallGenerated = timeSinceStart;
     }
-    int deltaTime = timeSinceStart - oldTimeSinceStart;
+    int deltaTime = 10; timeSinceStart - oldTimeSinceStart;
     oldTimeSinceStart = timeSinceStart;
     std::list<Ball*> ballsToRemove;
 
-    Ball::move(balls, deltaTime);
+    balls = Ball::move(balls, deltaTime);
 
     for (Ball* ball : balls) {
       bool touchBasket = ball->checkCollisionWithBasket(basket);
@@ -102,17 +102,23 @@ public:
         balls.remove(ball);
     }
 
-    int i = 0;
-    for (auto ballIt1 = balls.begin(); ballIt1 != balls.end(); ballIt1++, i++) {
-      int j = 0;
-      for (auto ballIt2 = balls.begin(); ballIt2 != balls.end(); ballIt2++, j++) {
-        Ball* ball1 = *ballIt1;
-        Ball* ball2 = *ballIt2;
-        if (ball1->colliding(ball2) && i > j) {
-          std::cout << "Colliding\n";
-          ball1->resolveCollision(ball2);
-        }
-      }
+    balls = Ball::ResolveBallsCollisions(balls);
+
+    if (aPressed) {
+      platform1->rotateLeft();
+      aPressed = false;
+    }
+    if (sPressed) {
+      platform1->rotateRight();
+      sPressed = false;
+    }
+    if (dPressed) {
+      platform2->rotateLeft();
+      dPressed = false;
+    }
+    if (fPressed) {
+      platform2->rotateRight();
+      fPressed = false;
     }
   }
 
@@ -142,20 +148,24 @@ public:
 
   void handleKey(unsigned char c) {
     if (c == 'a') {
-      platform1->rotateLeft();
+      aPressed = true;
     }
     if (c == 's') {
-      platform1->rotateRight();
+      sPressed = true;
     }
     if (c == 'd') {
-      platform2->rotateLeft();
+      dPressed = true;
     }
     if (c == 'f') {
-      platform2->rotateRight();
+      fPressed = true;
     }
   }
 
   void drawResultScreen() {
+    if (wasResultShown) {
+      return;
+    }
+    wasResultShown = true;
     if (redCount >= RED_BALLS_COUNT_TO_WIN && blueCount >= BLUE_BALLS_COUNT_TO_WIN) {
       std::cout << "You win!!\n";
     }
@@ -177,5 +187,10 @@ private:
   int blueCount;
   int totalBallsGeneratedCount;
   bool inGame;
+  bool wasResultShown = false;
+  bool aPressed = false;
+  bool sPressed = false;
+  bool dPressed = false;
+  bool fPressed = false;
   //gltext::Font font;
 };

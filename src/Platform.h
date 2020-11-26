@@ -1,7 +1,7 @@
 #pragma once 
 #include"Vector.h"
 
-const float ANGEL_DELTA = 2.0f;
+const float ANGEL_DELTA = 0.5f;
 
 class Platform: public Drawable {
 public:
