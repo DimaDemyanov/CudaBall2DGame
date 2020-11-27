@@ -37,9 +37,15 @@ public:
 
     Vector* platform1Pos = new Vector(0.5, 0.5);
     Vector* platform2Pos = new Vector(-0.6, -0.2);
+    Vector* platform3Pos = new Vector(0, 0);
 
     platform1 = new Platform(platform1Pos, 0.0f, 0.4f, 0.05f);
     platform2 = new Platform(platform2Pos, 0.0f, 0.45f, 0.07f);
+    platform3 = new Platform(platform3Pos, 45.0f, 0.2f, 0.2f);
+
+    platforms.push_back(platform1);
+    platforms.push_back(platform2);
+    platforms.push_back(platform3);
 
     redBallGenerator = new BallGenerator(redBallsGenVelocityFrom, redBallsGenVelocityTo, redBallsGenPos, 0.015, RED);
     blueBallGenerator = new BallGenerator(blueBallsGenVelocityFrom, blueBallsGenVelocityTo, blueBallsGenPos, 0.02, BLUE);
@@ -70,11 +76,16 @@ public:
       totalBallsGeneratedCount += 2;
       lastTimeBallGenerated = timeSinceStart;
     }
-    int deltaTime = 10; timeSinceStart - oldTimeSinceStart;
+    int deltaTime = 10; // timeSinceStart - oldTimeSinceStart;
     oldTimeSinceStart = timeSinceStart;
     std::list<Ball*> ballsToRemove;
 
-    balls = Ball::move(balls, deltaTime);
+    Ball::move(balls, deltaTime, platforms);
+
+    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform1);
+    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform2);
+    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform3);
+    //Ball::ResolveBallsCollisions(balls);
 
     for (Ball* ball : balls) {
       bool touchBasket = ball->checkCollisionWithBasket(basket);
@@ -86,23 +97,15 @@ public:
           blueCount++;
         }
       }
-      if (ball->checkCollisionWithPlatform(platform1)) {
-        ball->changeVelocity(platform1);
-      }
-      if (ball->checkCollisionWithPlatform(platform2)) {
-        ball->changeVelocity(platform2);
-      }
       if (ball->shouldBeDeleted() || touchBasket) {
-        delete ball;
         ballsToRemove.push_back(ball);
       }
     }
 
     for (Ball* ball : ballsToRemove) {
-        balls.remove(ball);
+      balls.remove(ball);
     }
 
-    balls = Ball::ResolveBallsCollisions(balls);
 
     if (aPressed) {
       platform1->rotateLeft();
@@ -134,6 +137,7 @@ public:
     basket->draw();
     platform1->draw();
     platform2->draw();
+    platform3->draw();
 
     if (balls.size() > 3) {
       /*const char *text = "Some sample text goes here.\n"
@@ -159,6 +163,18 @@ public:
     if (c == 'f') {
       fPressed = true;
     }
+    if (c == 'i') {
+      platform3->moveTo(0, 0.01f);
+    }
+    if (c == 'k') {
+      platform3->moveTo(0, -0.01f);
+    }
+    if (c == 'j') {
+      platform3->moveTo(-0.01f, 0);
+    }
+    if (c == 'l') {
+      platform3->moveTo(0.01f, 0);
+    }
   }
 
   void drawResultScreen() {
@@ -178,9 +194,11 @@ private:
   BallGenerator* redBallGenerator;
   BallGenerator* blueBallGenerator;
   std::list<Ball*> balls;
+  std::list<Platform*> platforms;
   Basket* basket;
   Platform* platform1;
   Platform* platform2;
+  Platform* platform3;
   int oldTimeSinceStart;
   int lastTimeBallGenerated;
   int redCount;

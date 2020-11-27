@@ -1,7 +1,16 @@
 #pragma once 
 #include"Vector.h"
+#include<list>
 
 const float ANGEL_DELTA = 0.5f;
+
+struct PlatformData {
+  float pos_x;
+  float pos_y;
+  float angle;
+  float width;
+  float height;
+};
 
 class Platform: public Drawable {
 public:
@@ -65,6 +74,25 @@ public:
     this->height = height;
   }
 
+  void moveTo(float d_x, float d_y) {
+    pos->setX(pos->getX() + d_x);
+    pos->setY(pos->getY() + d_y);
+  }
+  
+  PlatformData getPlatformData() {
+    PlatformData platformData = { pos->getX(), pos->getY(), angle, width, height };
+    return platformData;
+  }
+
+  static PlatformData* convertPlatformsListToPlatformsData(std::list<Platform*> platforms) {
+    PlatformData* platformsData = new PlatformData[platforms.size()];
+    int i = 0;
+    for (Platform* platform : platforms) {
+      platformsData[i++] = platform->getPlatformData();
+    }
+
+    return platformsData;
+  }
 private:
   Vector* pos;
   float angle;

@@ -66,21 +66,7 @@ cudaError_t CudaMoveBallsKernelInvoke(BallData* ballsData, int size, float delta
   return cudaStatus;
 }
 
-
-void Ball::CudaMoveBalls(BallData* ballsData, int size, float deltaTime) {
-  BallData* ballsDataGPU;
-
-  allocateOnGPU((void**)&ballsDataGPU, size * sizeof(BallData));
-  moveToGPU(ballsData, ballsDataGPU, size * sizeof(BallData));
-  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
-
-  CudaMoveBallsKernelInvoke(ballsDataGPU, size, deltaTime);
-
-  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
-
-  cudaFree(ballsDataGPU);
-}
-
+// Resolving collisions between balls
 __device__ void CudaResolveBallsCollision(BallData* ball1, BallData* ball2) {
   // get the mtd
   //Vector* delta = pos->subtract(ball->getPos());
@@ -170,16 +156,123 @@ cudaError_t CudaResolveBallsCollisionsKernelInvoke(BallData* ballsData, int size
   return cudaStatus;
 }
 
+// Resolving collisions with Platform
 
-void Ball::CudaResolveBallsCollisions(BallData* ballsData, int size) {
+__device__ void changeVelocity(float cx, float cy, float radius, float left, float top, float right, float bottom, float velocity_x, float velocity_y, float* newVelocity_x, float* newVelocity_y) {
+  float closestX = (cx < left ? left : (cx > right ? right : cx));
+  float closestY = (cy < top ? top : (cy > bottom ? bottom : cy));
+  float dx = closestX - cx;
+  float dy = closestY - cy;
+
+  *newVelocity_x = velocity_x;
+  *newVelocity_y = velocity_y;
+  if (dy > dx && dx != 0) {
+    if (dx * velocity_x > 0) {
+      return;
+    }
+    *newVelocity_x = -velocity_x;
+  }
+  else {
+    if (dy * velocity_y > 0) {
+      return;
+    }
+    *newVelocity_y = -velocity_y;
+  }
+}
+
+__device__ void changeVelocity(float cx, float cy, float radius, float x, float y, float width, float height, float angle, float velocity_x, float velocity_y, float* newVelocity_x, float* newVelocity_y) {
+  float alpha = -angle / 180 * PI;
+  float x1 = (cx - x) * cos(alpha) - (cy - y) * sin(alpha);
+  float y1 = (cx - x) * sin(alpha) + (cy - y) * cos(alpha);
+  //Vector* newVelocity = new Vector(velocity->getX() * cos(alpha) - velocity->getY() * sin(alpha), velocity->getX() * sin(alpha) + velocity->getY() * cos(alpha));
+  *newVelocity_x = velocity_x * cos(alpha) - velocity_y * sin(alpha);
+  *newVelocity_y = velocity_x * sin(alpha) + velocity_y * cos(alpha);
+  changeVelocity(x1, y1, radius, -width / 2, height / 2, width / 2, -height / 2, *newVelocity_x, *newVelocity_y, newVelocity_x, newVelocity_y);
+  float resultVelocity_x = *newVelocity_x * cos(alpha) + *newVelocity_y * sin(alpha);
+  float resultVelocity_y = -*newVelocity_x * sin(alpha) + *newVelocity_y * cos(alpha);
+  *newVelocity_x = resultVelocity_x;
+  *newVelocity_y = resultVelocity_y;
+}
+
+__device__ bool intersectsBallAndRect(float cx, float cy, float radius, float left, float top, float right, float bottom) {
+  float closestX = (cx < left ? left : (cx > right ? right : cx));
+  float closestY = (cy > top ? top : (cy < bottom ? bottom : cy));
+  float dx = closestX - cx;
+  float dy = closestY - cy;
+
+  return (dx * dx + dy * dy) <= radius * radius;
+}
+
+__device__ bool intersectsBallAndRotatedRect(float cx, float cy, float radius, float x, float y, float width, float height, float angle) {
+  float alpha = -angle / 180 * PI;
+  float x1 = (cx - x) * cos(alpha) - (cy - y) * sin(alpha);
+  float y1 = (cx - x) * sin(alpha) + (cy - y) * cos(alpha);
+  return intersectsBallAndRect(x1, y1, radius, -width / 2, height / 2, width / 2, -height / 2);
+}
+
+__global__ void CudaResolveBallsCollisionWithPlatformKernel(BallData* ballsData, int size, PlatformData platformData)
+{
+  int tId = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tId < size) {
+    if (intersectsBallAndRotatedRect(ballsData[tId].pos_x, ballsData[tId].pos_y, ballsData[tId].radius, platformData.pos_x, platformData.pos_y, platformData.width, platformData.height, platformData.angle)) {
+      changeVelocity(ballsData[tId].pos_x, ballsData[tId].pos_y, ballsData[tId].radius, platformData.pos_x, platformData.pos_y, platformData.width, platformData.height, platformData.angle, ballsData[tId].velocity_x, ballsData[tId].velocity_y, &(ballsData[tId].velocity_x), &(ballsData[tId].velocity_y));
+    }
+  }
+}
+
+cudaError_t CudaResolveBallsCollisionWithPlatformKernelInvoke(BallData* ballsData, int size, PlatformData platformData)
+{
+  int threadsPerBlock = 1024;
+  int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
+
+  CudaResolveBallsCollisionWithPlatformKernel << <blocksPerGrid, threadsPerBlock >> > (ballsData, size, platformData);
+
+  cudaError_t cudaStatus = cudaGetLastError();
+  if (cudaStatus != cudaSuccess)
+  {
+    std::cout << "CudaResolveBallsCollisionsKernel launch failed: " << cudaGetErrorString(cudaStatus) << std::endl;
+  }
+
+  return cudaStatus;
+}
+
+
+void Ball::CudaMoveBalls(BallData* ballsData, int ballsCount, float deltaTime, PlatformData* platformData, int platformDataCount) {
   BallData* ballsDataGPU;
 
-  allocateOnGPU((void**)&ballsDataGPU, size * sizeof(BallData));
-  moveToGPU(ballsData, ballsDataGPU, size * sizeof(BallData));
-  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
+  allocateOnGPU((void**)&ballsDataGPU, ballsCount * sizeof(BallData));
+  moveToGPU(ballsData, ballsDataGPU, ballsCount * sizeof(BallData));
 
-  CudaResolveBallsCollisionsKernelInvoke(ballsDataGPU, size);
+  CudaMoveBallsKernelInvoke(ballsDataGPU, ballsCount, deltaTime);
+  CudaResolveBallsCollisionsKernelInvoke(ballsDataGPU, ballsCount);
+  for (int i = 0; i < platformDataCount; i++) {
+    CudaResolveBallsCollisionWithPlatformKernelInvoke(ballsDataGPU, ballsCount, platformData[i]);
+  }
+  moveToCPU(ballsData, ballsDataGPU, ballsCount * sizeof(BallData));
 
-  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
   cudaFree(ballsDataGPU);
 }
+
+//void Ball::CudaResolveBallsCollisions(BallData* ballsData, int size) {
+//  BallData* ballsDataGPU;
+//
+//  allocateOnGPU((void**)&ballsDataGPU, size * sizeof(BallData));
+//  moveToGPU(ballsData, ballsDataGPU, size * sizeof(BallData));
+//
+//  CudaResolveBallsCollisionsKernelInvoke(ballsDataGPU, size);
+//
+//  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
+//  cudaFree(ballsDataGPU);
+//}
+//
+//void Ball::CudaResolveBallsCollisionWithPlatform(BallData* ballsData, int size, PlatformData platformData) {
+//  BallData* ballsDataGPU;
+//
+//  allocateOnGPU((void**)&ballsDataGPU, size * sizeof(BallData));
+//  moveToGPU(ballsData, ballsDataGPU, size * sizeof(BallData));
+//
+//  CudaResolveBallsCollisionWithPlatformKernelInvoke(ballsDataGPU, size, platformData);
+//
+//  moveToCPU(ballsData, ballsDataGPU, size * sizeof(BallData));
+//  cudaFree(ballsDataGPU);
+//}
