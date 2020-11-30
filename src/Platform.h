@@ -87,6 +87,7 @@ public:
   static PlatformData* convertPlatformsListToPlatformsData(std::list<Platform*> platforms) {
     PlatformData* platformsData = new PlatformData[platforms.size()];
     int i = 0;
+
     for (Platform* platform : platforms) {
       platformsData[i++] = platform->getPlatformData();
     }

@@ -7,10 +7,6 @@
 class CollisionChecker {
 public: 
   static bool intersectsBallAndRect(float cx, float cy, float radius, float left, float top, float right, float bottom) {
-    //left -= radius;
-    //right += radius;
-    //top += radius;
-    //bottom -= radius;
     float closestX = (cx < left ? left : (cx > right ? right : cx));
     float closestY = (cy > top ? top : (cy < bottom ? bottom : cy));
     float dx = closestX - cx;
@@ -20,10 +16,6 @@ public:
   }
 
   static Vector* getIntersectionNormal(float cx, float cy, float radius, float left, float top, float right, float bottom) {
-    //left -= radius;
-    //right += radius;
-    //top += radius;
-    //bottom -= radius;
     float closestX = (cx < left ? left : (cx > right ? right : cx));
     float closestY = (cy > top ? top : (cy < bottom ? bottom : cy));
     float dx = closestX - cx;

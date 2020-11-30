@@ -1,6 +1,7 @@
 #pragma once
 #include"Drawable.h"
 #include"Drawer.h"
+#include"Platform.h"
 #include <gl/glut.h>
 
 const Color BASKET_COLOR = {0.4f, 0.4f, 0.4f};
@@ -33,7 +34,6 @@ public:
     return -1 + height;
   }
 
-
   float getLength() {
     return length;
   }
@@ -48,6 +48,11 @@ public:
 
   void setHeight(float height) {
     this->height = height;
+  }
+
+  PlatformData getPlatformData() {
+    PlatformData platformData = { 0.0f, -1 + height / 2, 0.0f, length, height };
+    return platformData;
   }
 
 private:

@@ -5,11 +5,16 @@
 #include"Basket.h"
 #include"Platform.h"
 #include"CollisionChecker.h"
-#include <gl/glut.h>
-#include <list>
+//#include"Game.h"
+#include<gl/glut.h>
+#include<list>
 
 enum BallType {
-  RED, BLUE
+  RED, BLUE, TO_DELETE
+};
+
+struct Score {
+  int redCount, blueCount;
 };
 
 const Color RED_BALL_COLOR = { 1.0f, 0.0f, 0.0f };
@@ -25,12 +30,9 @@ struct BallData {
   BallType type;
 };
 
-
-
 class Ball: public Drawable {
 public: 
   Ball(Vector* pos, Vector* velocity, float radius, BallType ballType) {
-    mass = 1;
     this->pos = new Vector(*pos);
     this->initPos = new Vector(*pos);
     this->velocity = new Vector(*velocity);
@@ -55,25 +57,14 @@ public:
     Drawer::drawCircle(pos->getX(), pos->getY(), radius);
   }
 
-  bool shouldBeDeleted() {
-    if (pos->getY() < -1.5f || pos->getY() > 1.5f || pos->getX() < -1.5f || pos->getX() > 1.5f) {
-      return true;
-    }
-    return false;
-  }
-
   //TODO: avoid convertions to BallData and back
-  static void move(std::list<Ball*> balls, int deltaTime, std::list<Platform*> platforms) {
+  static void move(std::list<Ball*> &balls, int deltaTime, std::list<Platform*> platforms, Basket* basket, Score* score) {
     BallData* ballsData = convertBallsListToBallsData(balls);
-    CudaMoveBalls(ballsData, balls.size(), 1.0 * deltaTime / 3000, Platform::convertPlatformsListToPlatformsData(platforms), platforms.size());
+    CudaMoveBalls(ballsData, balls.size(), 1.0 * deltaTime / 3000, Platform::convertPlatformsListToPlatformsData(platforms), platforms.size(), basket->getPlatformData(),  score);
     convertBallsDataToBallsList(ballsData, balls.size(), balls);
   }
 
-  static void Ball::CudaMoveBalls(BallData* ballsData, int ballsCount, float deltaTime, PlatformData* platformData, int platformDataCount);// {};
-
-  bool checkCollisionWithBasket(Basket* basket) {
-    return CollisionChecker::intersectsBallAndRect(pos->getX(), pos->getY(), radius, basket->getX1(), basket->getY2(), basket->getX2(), basket->getY1());
-  }
+  static void CudaMoveBalls(BallData* ballsData, int ballsCount, float deltaTime, PlatformData* platformData, int platformDataCount, PlatformData basketData, Score* score);// {};
 
   Vector* getPos() {
     return pos;
@@ -133,6 +124,7 @@ public:
     pos->setY(ballData.pos_y);
     velocity->setX(ballData.velocity_x);
     velocity->setY(ballData.velocity_y);
+    ballType = ballData.type;
   }
 private: 
   Vector* pos;
@@ -152,11 +144,19 @@ private:
     return ballsData;
   }
 
-  static void convertBallsDataToBallsList(BallData* ballsData, int size, std::list<Ball*> balls) {
+  static void convertBallsDataToBallsList(BallData* ballsData, int size, std::list<Ball*> &balls) {
     int i = 0;
+    std::list<Ball*> ballsToRemove;
     for (Ball* ball: balls) {
-
       ball->setBallData(ballsData[i++]);
+      if (ball->getBallType() == TO_DELETE) {
+        ballsToRemove.push_back(ball);
+      }
+    }
+
+    for (Ball* ball : ballsToRemove) {
+      balls.remove(ball);
+      delete ball;
     }
   }
 };

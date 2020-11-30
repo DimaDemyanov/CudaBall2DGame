@@ -5,15 +5,15 @@
 #include <gl/glew.h>
 #include <gl/gl.h>
 #include <gl/glut.h>
-#include"Ball.h"
 #include"BallGenerator.h"
+#include"Ball.h"
 #include"Basket.h"
 #include"Platform.h"
 
 const unsigned int TIME_BETWEEN_BALLS_GENERATION = 10;
 const unsigned int BALLS_MAX_COUNT = 3000;
-const unsigned int RED_BALLS_COUNT_TO_WIN = 70;
-const unsigned int BLUE_BALLS_COUNT_TO_WIN = 60;
+const unsigned int RED_BALLS_COUNT_TO_WIN = 1000;
+const unsigned int BLUE_BALLS_COUNT_TO_WIN = 1000;
 
 class Game {
 public:
@@ -25,7 +25,7 @@ public:
     //font = gltext::Font("C:/Users/dimad/source/repos/CudaKursachCMakeV2.0/resources/Lato-Thin.ttf", 16, 128);
     //font.setDisplaySize(300, 300);
     //font.cacheCharacters("1234567890!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,./;'[]\\<>?:\"{}|-=_+");
-    redCount = blueCount = 0;
+    score = { 0 , 0 };
     oldTimeSinceStart = glutGet(GLUT_ELAPSED_TIME);
     Vector* redBallsGenPos = new Vector(1, 1);
     Vector* redBallsGenVelocityFrom = new Vector(0.1, 0.1);
@@ -69,7 +69,7 @@ public:
       inGame = false;
       return;
     }
-    std::cout << balls.size() << " Red count: " << redCount << " Blue count: " << blueCount << '\n';
+    std::cout << "Balls in game: " << balls.size() << " Red count: " << score.redCount << " Blue count: " << score.blueCount << '\n';
     int timeSinceStart = glutGet(GLUT_ELAPSED_TIME);
     if ((lastTimeBallGenerated + TIME_BETWEEN_BALLS_GENERATION < timeSinceStart || lastTimeBallGenerated == -1) && totalBallsGeneratedCount < BALLS_MAX_COUNT) {
       generateBalls();
@@ -80,32 +80,7 @@ public:
     oldTimeSinceStart = timeSinceStart;
     std::list<Ball*> ballsToRemove;
 
-    Ball::move(balls, deltaTime, platforms);
-
-    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform1);
-    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform2);
-    //Ball::ResolveBallsCollisionWithPlatform(balls, *platform3);
-    //Ball::ResolveBallsCollisions(balls);
-
-    for (Ball* ball : balls) {
-      bool touchBasket = ball->checkCollisionWithBasket(basket);
-      if (touchBasket) {
-        if (ball->getBallType() == RED) {
-          redCount++;
-        }
-        else {
-          blueCount++;
-        }
-      }
-      if (ball->shouldBeDeleted() || touchBasket) {
-        ballsToRemove.push_back(ball);
-      }
-    }
-
-    for (Ball* ball : ballsToRemove) {
-      balls.remove(ball);
-    }
-
+    Ball::move(balls, deltaTime, platforms, basket, &score);
 
     if (aPressed) {
       platform1->rotateLeft();
@@ -182,7 +157,7 @@ public:
       return;
     }
     wasResultShown = true;
-    if (redCount >= RED_BALLS_COUNT_TO_WIN && blueCount >= BLUE_BALLS_COUNT_TO_WIN) {
+    if (score.redCount >= RED_BALLS_COUNT_TO_WIN && score.blueCount >= BLUE_BALLS_COUNT_TO_WIN) {
       std::cout << "You win!!\n";
     }
     else {
@@ -201,8 +176,6 @@ private:
   Platform* platform3;
   int oldTimeSinceStart;
   int lastTimeBallGenerated;
-  int redCount;
-  int blueCount;
   int totalBallsGeneratedCount;
   bool inGame;
   bool wasResultShown = false;
@@ -210,5 +183,6 @@ private:
   bool sPressed = false;
   bool dPressed = false;
   bool fPressed = false;
+  Score score;
   //gltext::Font font;
 };
